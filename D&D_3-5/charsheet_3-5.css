@@ -1,11 +1,11 @@
 /* ----------------------- classes for dark mode -----------------------*/
 .sheet-darkmode .charactersheet,
-.sheet-darkmode .content-sheet{
+.sheet-darkmode .content-sheet {
     background-color: #1F1F1F;
     color: #B3B3B3;
 }
 
-.sheet-darkmode .popupForum{
+.sheet-darkmode .popupForum {
     background-color: #595959;
     color: #B3B3B3;
     z-index: 99;
@@ -3107,6 +3107,7 @@
     opacity: 0;
     z-index: 99;
 }
+
 .overlayPopupForum:target {
     visibility: visible;
     opacity: 1;
@@ -3148,7 +3149,7 @@
     overflow: auto;
 }
 
-.contentPopupForum{
+.contentPopupForum {
     text-align: center;
 }
 
