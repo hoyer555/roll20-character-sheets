@@ -446,24 +446,14 @@
 text/javascript
 text/worker
 -->
-<script type="text/worker">
+<script type="text/javascript">
 
-// ================ START Logger definition ================
+// ========================================================
+// ================ START Logger definition ===============
+// ========================================================
+
 // use variable logger
     class Logger {
-        debug(message){
-            this.#colorLog(this.#loggingSettings.debug, this.#logLevelEnalbed.debug, message);
-        }
-
-        error(message){
-            this.#colorLog(this.#loggingSettings.error, this.#logLevelEnalbed.error, message);
-        }
-        warn(message){
-            this.#colorLog(this.#loggingSettings.warn, this.#logLevelEnalbed.warn, message);
-        }
-        info(message){
-            this.#colorLog(this.#loggingSettings.info, this.#logLevelEnalbed.info, message);
-        }
 
         #loggingSettings = {
             error: {
@@ -504,65 +494,83 @@ text/worker
             }
         };
 
-        #logLevelEnalbed= {
+        #logLevelEnabled= {
             error: true,
             warn: true,
             info: true,
             debug: false
         }
 
-        #complexType(o){
-            switch(typeof o){
+        debug(message){
+            this.#colorLog(this.#loggingSettings.debug, this.#logLevelEnabled.debug, message);
+        }
+
+        error(message){
+            this.#colorLog(this.#loggingSettings.error, this.#logLevelEnabled.error, message);
+        }
+        warn(message){
+            this.#colorLog(this.#loggingSettings.warn, this.#logLevelEnabled.warn, message);
+        }
+        info(message){
+            this.#colorLog(this.#loggingSettings.info, this.#logLevelEnabled.info, message);
+        }
+
+        #complexType(object){
+            switch(typeof object){
                 case 'string':
                     return 'string';
                 case 'boolean':
                     return 'boolean';
                 case 'number':
-                    return isNaN(o) ? 'NaN' : (o.toString().match(/\./) ? 'decimal' : 'integer');
+                    return isNaN(object) ? 'NaN' : (object.toString().match(/\./) ? 'decimal' : 'integer');
                 case 'function':
-                    return 'function: '+(o.name ? o.name+'()' : '(anonymous)');
+                    return 'function: '+(object.name ? object.name+'()' : '(anonymous)');
                 case 'object':
-                    return Array.isArray(o) ? 'array' : ( o ? 'null' : 'object');
+                    return Array.isArray(object) ? 'array' : ( object ? 'null' : 'object');
                 default:
-                    return typeof o;
+                    return typeof object;
             }
         }
 
-        #dataLogger(logger,data){
-            let type = this.#complexType(m);
+        #dataLogger(logger, options, message, bgLabel, bgText){
+            let type = this.#complexType(message);
             switch(type){
                 case 'string':
-                    logger(data);
+                    logger('%c ' + options.title + ' - %c ' + message + ' ', bgLabel, bgText);
                     break;
                 case 'undefined':
                 case 'null':
                 case 'NaN':
-                    logger('['+type+']');
+                    logger('%c ' + options.title + ' - ['+type+']: %c ' + message + ' ', bgLabel, bgText);
                     break;
                 case 'number':
                 case 'not a number':
                 case 'integer':
                 case 'decimal':
                 case 'boolean':
-                    logger('['+type+']: '+data);
+                    logger('%c ' + options.title + ' - ['+type+']: %c ' + message + ' ', bgLabel, bgText);
                     break;
                 case 'array':
-                    logger('['+type+']:=========================================');
-                    data.forEach(element => logger(element));
-                    logger('=========================================================');
+                    logger('%c ' + options.title + ' -', bgLabel);
+                    logger('%c ['+type+']:=========================================', bgText);
+                    message.forEach(element => logger('%c ' + element, bgText));
+                    logger('%c =========================================================', bgText);
                     break;
                 default:
-                    logger('['+type+']:=========================================');
-                    logger(JSON.stringify(data, null, 4))
-                    logger('=========================================================');
+                    logger('%c ' + options.title + ' -', bgLabel);
+                    logger('%c ['+type+']:=========================================', bgText);
+                    logger('%c ' + JSON.stringify(message, null, 4), bgText)
+                    logger('%c =========================================================', bgText);
                     break;
             }
         };
 
         #colorLog(options, levelEnabled, message) {
             if(levelEnabled){
-                console.log(
-                    '%c ' + options.title + ': %c ' + message + ' ',
+                this.#dataLogger(
+                    console.log,
+                    options,
+                    message,
                     'background-color: ' + options.color.bgLabel + ';color: ' + options.color.label + '; font-weight:bold;',
                     'background-color: ' + options.color.bgText + ';color: ' + options.color.text + ';'
                 );
@@ -579,8 +587,91 @@ text/worker
         "\t- logger.debug('debug');"
     );
 
-// ================ END Logger definition ================
+// ================ END Logger definition =================
 
+// ========================================================
+// ================ START Asynchronous caller =============
+// ========================================================
+
+    class AsynchronousElement {
+        #name;
+        #resolve;
+        #reject;
+        #caller;
+
+        constructor(name, resolve, reject, caller) {
+            this.#name = name;
+            this.#resolve = resolve;
+            this.#reject = reject;
+            this.#caller = caller;
+        }
+
+        getName(){
+            return this.#name;
+        }
+
+        getResolver(){
+            return this.#resolve;
+        }
+
+        getReject(){
+            return this.#reject;
+        }
+
+        getCaller(){
+            return this.#caller;
+        }
+    }
+
+    class AsynchronousCaller {
+
+        #toCalls = [];
+        #onError;
+
+        constructor(toCalls, onError) {
+            this.setToCall(toCalls);
+            this.setOnError(onError);
+        }
+
+        execute(){
+            const prom = new Promise(this.#toCalls[0].getResolver());
+        }
+
+        getToCalls(){
+            return this.#toCalls;
+        }
+
+        setToCall(toCalls){
+            if(toCalls){
+                toCalls.forEach( e => this.addToCall(e));
+            } else {
+                this.#toCalls = toCalls;
+            }
+        }
+
+        addToCall(toCall){
+            if(typeof toCall === "object" && toCall.constructor && toCall.constructor.name === "AsynchronousElement"){
+                this.#toCalls.push(toCall);
+            } else {
+                logger.error("AsynchronousCaller can execute only AsynchronousElement, found: " + typeof toCall);
+            }
+        }
+
+        getOnError(){
+            return this.#onError;
+        }
+
+        setOnError(onError){
+            this.#onError = onError;
+        }
+    }
+    const asyncCaller = new AsynchronousCaller();
+
+// ================ END Asynchronous caller ===============
+
+// ========================================================
+// ================ START Version checker =================
+// ========================================================
 
     class SheetLoader{
         #sheetVersion = "3.0.0";
@@ -620,7 +711,6 @@ text/worker
         }
 
         #initTab() {
-        debugger
             //Used to switch between tabs
             this.getTabList().forEach(button => {
                 on(`clicked:${button}`, function () {
@@ -641,4 +731,7 @@ text/worker
     sheetLoader.initSheet();
     //const sheetStructure = new SheetStructure();
     //sheetStructure.initSheet();
+
+// ================ END Version checker ===================
+
 </script>
